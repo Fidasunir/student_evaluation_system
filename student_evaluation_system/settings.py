@@ -151,7 +151,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 import google.generativeai as genai
 
 # Replace with your actual API key
-GEMINI_API_KEY = "AIzaSyBEL5S1WXfwl5hHjtmlHMbj08OgHXwX-Uc"
+GEMINI_API_KEY = ""
 
 
 # settings.py
