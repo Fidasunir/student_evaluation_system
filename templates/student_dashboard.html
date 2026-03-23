@@ -1,0 +1,423 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard - SmartEval</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      height: 100vh;
+      background: #002b5c;
+      color: white;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 240px;
+      padding-top: 30px;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.3s;
+    }
+
+    .sidebar h4 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 700;
+    }
+
+    .sidebar a {
+      color: #d1e3ff;
+      text-decoration: none;
+      padding: 12px 20px;
+      display: block;
+      transition: 0.3s;
+      border-radius: 8px;
+      margin: 3px 10px;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active {
+      background-color: #0d6efd;
+      color: white;
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 260px;
+      padding: 40px;
+    }
+
+    .section {
+      display: none;
+      animation: fadeIn 0.4s ease-in-out;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card-hover:hover {
+      transform: scale(1.02);
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .card-active {
+      border: 2px solid #28a745;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 5px #28a745; }
+      50% { box-shadow: 0 0 20px #28a745; }
+      100% { box-shadow: 0 0 5px #28a745; }
+    }
+
+    .correct-answer { color: #28a745; font-weight: 600; }
+    .wrong-answer { color: #dc3545; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar Navigation -->
+<div class="sidebar">
+  <h4><i class="bi bi-mortarboard"></i> SmartEval</h4>
+  <a href="#" class="active" data-target="quizzes"><i class="bi bi-clipboard-check"></i> Quizzes</a>
+  <a href="#" data-target="missed"><i class="bi bi-clock-history"></i> Missed Quizzes</a>
+  <a href="#" data-target="attempts"><i class="bi bi-graph-up"></i> Past Attempts</a>
+  <a href="#" data-target="courses"><i class="bi bi-journal-text"></i> Courses & Materials</a>
+  
+
+  {% if leaderboard %}
+  <a href="#" data-target="leaderboard"><i class="bi bi-trophy"></i> Leaderboard</a>
+  {% endif %}
+
+  <div class="mt-auto text-center pb-3">
+    <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">
+      <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">Welcome, {{ user.first_name }} (Student)</h2>
+  </div>
+
+  <!-- Student Info -->
+  <div class="mb-4">
+    <span class="badge bg-info text-dark me-2">
+      Semester: {% if student_semester %}{{ student_semester.name }}{% else %}N/A{% endif %}
+    </span>
+    <span class="badge bg-warning text-dark">
+      Batch: {% if student_batch %}{{ student_batch.name }}{% else %}N/A{% endif %}
+    </span>
+  </div>
+
+  <!-- Quizzes Section -->
+  <div id="quizzes" class="section active">
+    <div class="row g-3">
+      {% if active_quizzes or upcoming_quizzes %}
+        {% for quiz in active_quizzes %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card border-success rounded p-3 shadow-sm h-100 card-hover card-active">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title text-success">{{ quiz.title }} (Active)</h5>
+              <p><strong>Course:</strong> {{ quiz.course.name }}</p>
+              <p><strong>Module:</strong> {{ quiz.module.name|default:"N/A" }}</p>
+              <p><strong>Duration:</strong> {{ quiz.duration }} minutes</p>
+              {% if user.batch in quiz.batches.all %}
+                {% if now >= quiz.start_time and now <= quiz.end_time %}
+                  <a href="{% url 'attempt_quiz' quiz.id %}" class="btn btn-success mt-auto w-100">
+                    <i class="bi bi-pencil-square"></i> Attempt Quiz
+                  </a>
+                {% elif now < quiz.start_time %}
+                  <button class="btn btn-secondary mt-auto w-100" disabled>Starts Soon</button>
+                {% else %}
+                  <button class="btn btn-secondary mt-auto w-100" disabled>Not Available</button>
+                {% endif %}
+              {% else %}
+                <button class="btn btn-secondary mt-auto w-100" disabled>Not Assigned</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        {% for quiz in upcoming_quizzes %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card border-info rounded p-3 shadow-sm h-100 card-hover">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title text-info">{{ quiz.title }} (Upcoming)</h5>
+              <p><strong>Course:</strong> {{ quiz.course.name }}</p>
+              <p><strong>Start:</strong> {{ quiz.start_time|date:"d M, Y H:i" }}</p>
+              <p><strong>Duration:</strong> {{ quiz.duration }} minutes</p>
+              <button class="btn btn-secondary mt-auto w-100" disabled>Starts Soon</button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted text-center mt-3">No quizzes available for your batch at this time.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Missed Section -->
+  <div id="missed" class="section">
+    <div class="row g-3">
+      {% if missed_quizzes %}
+        {% for quiz in missed_quizzes %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card border-danger rounded p-3 shadow-sm h-100 card-hover">
+            <div class="card-body">
+              <h5 class="card-title text-danger">{{ quiz.title }}</h5>
+              <p><strong>Course:</strong> {{ quiz.course.name }}</p>
+              <p class="text-danger fw-bold">⏰ Time is over - You missed this quiz.</p>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted text-center">No missed quizzes 🎉</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Attempts Section -->
+  <div id="attempts" class="section">
+    <div class="row g-3">
+      {% if past_attempts %}
+        {% for attempt in past_attempts %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card border rounded p-3 shadow-sm h-100 card-hover">
+            <div class="card-body d-flex flex-column">
+              <h5 class="card-title text-primary">{{ attempt.quiz.title }}</h5>
+              <p><strong>Score:</strong> {{ attempt.score }}</p>
+              <p><strong>Submitted:</strong> {{ attempt.submitted_at|date:"d M, Y H:i" }}</p>
+              <button class="btn btn-outline-primary mt-auto w-100 view-answers-btn" 
+                      data-attempt-id="{{ attempt.id }}">
+                <i class="bi bi-eye"></i> View Answers
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted text-center">No past attempts yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Courses Section -->
+  <div id="courses" class="section">
+    {% if courses %}
+      {% for course in courses %}
+      <div class="card mb-3 shadow-sm">
+        <div class="card-header bg-primary text-white">{{ course.name }} ({{ course.course_code }})</div>
+        <div class="card-body">
+          {% with course.materials.all|dictsortreversed:"uploaded_at" as mats %}
+          {% if mats %}
+          <ul class="list-group list-group-flush">
+            {% for m in mats %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span><strong>Topic:</strong> {{ m.topic|default:"N/A" }}</span>
+              <a href="{{ m.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">Download</a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+            <p class="text-muted mb-0">No materials yet.</p>
+          {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted text-center">No courses available for your semester.</p>
+    {% endif %}
+  </div>
+
+  <!-- Results Section -->
+  <div id="results" class="section">
+    <h4 class="mb-3 text-primary"><i class="bi bi-bar-chart-line"></i> My Results</h4>
+    {% if results %}
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead class="table-primary">
+            <tr>
+              <th>Quiz</th>
+              <th>Course</th>
+              <th>Score</th>
+              <th>Total Marks</th>
+              <th>Percentage</th>
+              <th>Rank</th>
+              <th>Submitted On</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results %}
+            <tr>
+              <td>{{ r.quiz.title }}</td>
+              <td>{{ r.quiz.course.name }}</td>
+              <td><strong>{{ r.score }}</strong></td>
+              <td>{{ r.total_marks }}</td>
+              <td>{{ r.percentage }}%</td>
+              <td>{{ r.rank }}</td>
+              <td>{{ r.submitted_at|date:"d M, Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted">No completed quiz results yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Leaderboard -->
+  {% if leaderboard %}
+  <div id="leaderboard" class="section">
+    <div class="row g-3">
+      {% for entry in leaderboard %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card border rounded p-3 shadow-sm h-100 leaderboard-card">
+          <div class="card-body">
+            <h5 class="card-title">{{ entry.student.first_name }} {{ entry.student.last_name }}</h5>
+            <p><strong>Score:</strong> {{ entry.score }}</p>
+            <p><strong>Rank:</strong> {{ forloop.counter }}</p>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal for Attempt Review -->
+<div class="modal fade" id="attemptReviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-clipboard-check"></i> Quiz Review</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="attempt-details-content" class="p-3 text-center text-muted">
+          Loading details...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Sidebar switching
+  document.querySelectorAll('.sidebar a[data-target]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+      link.classList.add('active');
+      document.getElementById(link.dataset.target).classList.add('active');
+    });
+  });
+
+  // View attempt details with icons
+  document.querySelectorAll('.view-answers-btn').forEach(button => {
+    button.addEventListener('click', async () => {
+      const attemptId = button.getAttribute('data-attempt-id');
+      const modalBody = document.getElementById('attempt-details-content');
+      modalBody.innerHTML = '<div class="text-center text-secondary">Loading...</div>';
+
+      const modal = new bootstrap.Modal(document.getElementById('attemptReviewModal'));
+      modal.show();
+
+      try {
+        const response = await fetch(`/attempt/${attemptId}/details/json/`);
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        let html = `
+          <div class="mb-3 text-start">
+            <h5 class="fw-bold text-primary">${data.quiz_title}</h5>
+            <p><strong>Score:</strong> ${data.score}</p>
+            <p><strong>Submitted:</strong> ${data.submitted_at}</p>
+            <hr>
+          </div>
+        `;
+
+        data.questions.forEach((q, i) => {
+          html += `
+            <div class="card mb-3 shadow-sm">
+              <div class="card-body text-start">
+                <p class="fw-bold mb-2">${i + 1}. ${q.question}</p>
+                <ul class="list-unstyled mb-3">
+                  ${Object.entries(q.options).map(([key, val]) => {
+                    let color = '';
+                    let icon = '';
+
+                    if (key === q.correct_option) {
+                      color = 'text-success fw-bold';
+                      icon = '✅';
+                    } 
+                    if (key === q.selected_option && !q.is_correct) {
+                      color = 'text-danger fw-bold';
+                      icon = '❌';
+                    }
+
+                    return `<li class="${color}">${icon} ${key}) ${val}</li>`;
+                  }).join('')}
+                </ul>
+
+                <p><strong>Your Answer:</strong> 
+                  <span class="${q.is_correct ? 'text-success' : 'text-danger'}">
+                    ${q.selected_text || 'Not Answered'}
+                    ${q.is_correct ? '✅' : (!q.selected_text ? '' : '❌')}
+                  </span>
+                </p>
+                <p><strong>Correct Answer:</strong> 
+                  <span class="text-success">${q.correct_text} ✅</span>
+                </p>
+              </div>
+            </div>
+          `;
+        });
+
+        modalBody.innerHTML = html;
+
+      } catch (error) {
+        console.error(error);
+        modalBody.innerHTML = `<div class="text-danger">Error loading attempt details.</div>`;
+      }
+    });
+  });
+</script>
+
+
+
+</body>
+</html>

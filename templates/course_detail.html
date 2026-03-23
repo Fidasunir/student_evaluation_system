@@ -1,0 +1,139 @@
+{% extends 'base_teacher.html' %}
+{% load static %}
+
+{% block title %}{{ course.name }} | SmartEval{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+    <div>
+      <h2 class="fw-bold">{{ course.course_code }} - {{ course.name }}</h2>
+      <p class="text-muted mb-0">Semester: {{ course.semester.name }}</p>
+    </div>
+  </div>
+
+  <!-- Create Module Button -->
+  <button type="button" class="btn btn-success mb-4" data-bs-toggle="modal" data-bs-target="#createModuleModal">
+    <i class="bi bi-plus-circle me-1"></i> Create Module
+  </button>
+
+  <!-- Modules -->
+  <h4 class="fw-semibold border-start border-4 border-success ps-3 mb-3">Modules</h4>
+  <div class="row g-4">
+    {% for module in modules %}
+    <div class="col-md-4">
+      <div class="p-3 bg-white rounded-3 shadow-sm h-100 d-flex flex-column justify-content-between">
+        <div>
+          <h6 class="fw-bold">{{ module.name }}</h6>
+          <div class="mb-2">
+            <span class="badge bg-success"><i class="bi bi-file-earmark-text me-1"></i>{{ module.materials.count }} Materials</span>
+            <span class="badge bg-info text-dark"><i class="bi bi-question-circle me-1"></i>{{ module.quizzes.count }} Quizzes</span>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'module_detail' course.id module.id %}" class="btn btn-outline-success btn-sm flex-grow-1">
+            <i class="bi bi-eye me-1"></i> View
+          </a>
+          <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1 edit-btn"
+            data-bs-toggle="modal" data-bs-target="#editModuleModal"
+            data-module-id="{{ module.id }}" data-module-name="{{ module.name }}">
+            <i class="bi bi-pencil-square me-1"></i> Edit
+          </button>
+          <form method="post" action="{% url 'delete_module' course.id module.id %}" class="flex-grow-1" onsubmit="return confirm('Are you sure you want to delete this module?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+              <i class="bi bi-trash me-1"></i> Delete
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No modules yet. Create one to get started!</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Create Module Modal -->
+<div class="modal fade" id="createModuleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content p-3">
+      <form method="post" action="{% url 'course_detail' course.id %}">
+        {% csrf_token %}
+        <div class="modal-header border-0">
+          <h5 class="modal-title">Create Module</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          {% if modal_error %}
+            <div class="alert alert-danger">{{ modal_error }}</div>
+          {% endif %}
+          <input type="text" class="form-control" name="name" placeholder="Module Name" value="{{ request.POST.name }}" required>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="submit" class="btn btn-success">Create</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Module Modal -->
+<div class="modal fade" id="editModuleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content p-3">
+      <form id="editModuleForm" method="post">
+        {% csrf_token %}
+        <div class="modal-header border-0">
+          <h5 class="modal-title">Edit Module</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="form-control" name="name" id="editModuleName" required>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if show_modal %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var createModuleModalEl = document.getElementById('createModuleModal');
+  var createModuleModal = new bootstrap.Modal(createModuleModalEl);
+  createModuleModal.show();
+
+  createModuleModalEl.addEventListener('shown.bs.modal', function () {
+    const input = createModuleModalEl.querySelector('input[name="name"]');
+    if (input) input.focus();
+  });
+});
+</script>
+{% endif %}
+
+<!-- Edit Modal Logic -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const editButtons = document.querySelectorAll('.edit-btn');
+  const editForm = document.getElementById('editModuleForm');
+  const editInput = document.getElementById('editModuleName');
+
+  editButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const moduleId = this.getAttribute('data-module-id');
+      const moduleName = this.getAttribute('data-module-name');
+      editInput.value = moduleName;
+      editForm.action = `/courses/{{ course.id }}/modules/${moduleId}/edit/`;  // 🔹 Make sure this URL exists in urls.py
+    });
+  });
+});
+</script>
+
+{% endblock %}

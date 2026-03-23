@@ -1,0 +1,15 @@
+<h3>Pending Teacher Approvals</h3>
+<form method="POST">
+  {% csrf_token %}
+  <ul>
+    {% for teacher in teachers %}
+      <li>
+        <input type="checkbox" name="approve" value="{{ teacher.id }}">
+        {{ teacher.username }} ({{ teacher.email }})
+      </li>
+    {% empty %}
+      <li>No teachers pending approval.</li>
+    {% endfor %}
+  </ul>
+  <button type="submit">Approve Selected</button>
+</form>

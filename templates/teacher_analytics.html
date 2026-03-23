@@ -1,0 +1,135 @@
+{% extends 'base_teacher.html' %}
+{% load static %}
+
+{% block title %}Teacher Analytics | SmartEval{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <h2 class="mb-4">📊 Teacher Quiz Analytics</h2>
+
+  <!-- Overview Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm p-3 mb-3" style="border-radius:12px;">
+        <h5 class="text-muted">Total Courses</h5>
+        <h3 class="text-success">{{ total_courses }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm p-3 mb-3" style="border-radius:12px;">
+        <h5 class="text-muted">Total Quizzes</h5>
+        <h3 class="text-success">{{ total_quizzes }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm p-3 mb-3" style="border-radius:12px;">
+        <h5 class="text-muted">Avg Score</h5>
+        <h3 class="text-success">{{ avg_score }}%</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm p-3 mb-3" style="border-radius:12px;">
+        <h5 class="text-muted">Success Rate</h5>
+        <h3 class="text-success">{{ success_rate }}%</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Grouping -->
+  {% if course_data %}
+    {% for course in course_data %}
+      <div class="card shadow-sm mb-4" style="border-radius:12px;">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"
+             data-bs-toggle="collapse" data-bs-target="#course-{{ forloop.counter }}" style="cursor:pointer;">
+          <span>{{ course.course.course_code }} - {{ course.course.name }}</span>
+          <i class="bi bi-chevron-down"></i>
+        </div>
+
+        <div id="course-{{ forloop.counter }}" class="collapse">
+          <div class="card-body">
+            {% if course.quizzes %}
+              {% for q in course.quizzes %}
+                <div class="card mb-3 shadow-sm" style="border-radius:10px;">
+                  <div class="card-header bg-success text-white d-flex justify-content-between align-items-center"
+                       data-bs-toggle="collapse" data-bs-target="#quiz-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                    <span>{{ q.quiz.title }} ({{ q.quiz.total_marks }} Marks)</span>
+                    <i class="bi bi-chevron-down"></i>
+                  </div>
+                  <div id="quiz-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="collapse">
+                    <div class="card-body">
+                      <div class="row mb-3">
+                        <div class="col-md-3"><strong>Total Attempts:</strong> <span class="badge bg-success">{{ q.total_attempts }}</span></div>
+                        <div class="col-md-3"><strong>Average Score:</strong> <span class="badge bg-info text-dark">{{ q.avg_score }} / {{ q.quiz.total_marks }}</span></div>
+                        <div class="col-md-3"><strong>Success Rate:</strong> <span class="badge bg-primary">{{ q.success_rate }}%</span></div>
+                      </div>
+
+                      <!-- Score Table -->
+                      <div class="table-responsive mb-3">
+                        <table class="table table-bordered table-striped">
+                          <thead class="table-success">
+                            <tr>
+                              <th>Score Range</th>
+                              <th>No. of Students</th>
+                              <th>Percentage</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for range, count, percent in q.score_ranges %}
+                            <tr>
+                              <td>{{ range }}</td>
+                              <td>{{ count }}</td>
+                              <td>{{ percent }}%</td>
+                            </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <!-- Chart -->
+                      <div class="chart-container" style="height:220px;">
+                        <canvas id="chart-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"></canvas>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted">No quizzes found for this course.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted">No assigned courses found.</p>
+  {% endif %}
+</div>
+
+<!-- Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% for course in course_data %}
+  {% for q in course.quizzes %}
+    const ctx{{ forloop.parentloop.counter }}{{ forloop.counter }} = document.getElementById('chart-{{ forloop.parentloop.counter }}-{{ forloop.counter }}').getContext('2d');
+    new Chart(ctx{{ forloop.parentloop.counter }}{{ forloop.counter }}, {
+      type: 'bar',
+      data: {
+        labels: [{% for range, count, percent in q.score_ranges %}'{{ range }}',{% endfor %}],
+        datasets: [{
+          label: 'No. of Students',
+          data: [{% for range, count, percent in q.score_ranges %}{{ count }},{% endfor %}],
+          backgroundColor: '#10b981'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+  {% endfor %}
+{% endfor %}
+</script>
+{% endblock %}

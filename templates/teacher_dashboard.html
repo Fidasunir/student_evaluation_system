@@ -1,0 +1,235 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard | SmartEval</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; }
+
+    /* Sidebar */
+    .sidebar { width: 250px; height: 100vh; background-color: #0f172a; position: fixed; top: 0; left: 0; color: white; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem 1rem; }
+    .sidebar h4 { text-align: center; font-weight: 600; color: #10b981; }
+    .nav-link { color: #cbd5e1; margin-bottom: 10px; font-weight: 500; transition: all 0.2s ease; }
+    .nav-link.active, .nav-link:hover { color: #10b981; background-color: rgba(16, 185, 129, 0.15); border-radius: 8px; }
+
+    /* Main Content */
+    .main-content { margin-left: 260px; padding: 2rem; }
+    .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .header h3 { font-weight: 600; }
+    .text-muted { font-size: 0.95rem; }
+
+    /* Cards */
+    .stat-card { border-radius: 14px; background: white; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.08); cursor: pointer; transition: all 0.2s ease; }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+    .stat-card.active { border: 2px solid #10b981; }
+    .stat-title { font-size: 0.9rem; color: #64748b; }
+    .stat-value { font-size: 1.6rem; font-weight: 600; color: #0f172a; }
+
+    /* Quiz and Course Cards */
+    .quiz-card { border-radius: 12px; background: white; padding: 1.25rem; box-shadow: 0 1px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+    .quiz-card:hover { transform: translateY(-2px); }
+    .badge-live { background-color: #10b981; }
+    .badge-upcoming { background-color: #fbbf24; color: #1e293b; }
+    .badge-ended { background-color: #94a3b8; color: #1e293b; }
+
+    .section-title { font-weight: 600; margin-top: 2rem; margin-bottom: 1rem; }
+    .btn-accent { background-color: #10b981; color: white; border: none; }
+    .btn-accent:hover { background-color: #0d9469; }
+
+    /* Responsive Adjustments */
+    @media (max-width: 992px) {
+      .main-content { margin-left: 0; padding: 1.5rem; }
+      .sidebar { position: relative; height: auto; width: 100%; flex-direction: row; align-items: center; justify-content: space-around; padding: 0.8rem; }
+      .sidebar h4, .sidebar hr { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div>
+    <h4>SmartEval</h4>
+    <hr class="border-secondary">
+    <nav class="nav flex-column">
+      <a class="nav-link active" href="#"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
+      
+      <a class="nav-link" href="{% url 'teacher_analytics' %}"><i class="bi bi-bar-chart me-2"></i> Analytics</a>
+    </nav>
+  </div>
+
+  <form method="POST" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-light w-100 mt-3">
+      <i class="bi bi-box-arrow-right me-1"></i> Logout
+    </button>
+  </form>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+  <div class="header">
+    <div>
+      <h3>👋 Welcome, {{ request.user.first_name|default:request.user.username }}</h3>
+      <p class="text-muted mb-0">Teacher Dashboard Overview</p>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stat-card text-center active" data-target="assigned">
+        <p class="stat-title">Assigned Courses</p>
+        <p class="stat-value">{{ assigned_courses|length }}</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card text-center" data-target="live">
+        <p class="stat-title">Live Quizzes</p>
+        <p class="stat-value">{{ live_quizzes|length }}</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card text-center" data-target="upcoming">
+        <p class="stat-title">Upcoming Quizzes</p>
+        <p class="stat-value">{{ upcoming_quizzes|length }}</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card text-center" data-target="past">
+        <p class="stat-title">Past Quizzes</p>
+        <p class="stat-value">{{ past_quizzes|length }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Sections -->
+  <div id="dashboard-sections">
+
+    <!-- Assigned Courses -->
+    <div class="dashboard-section" id="assigned-section">
+      <h5 class="section-title">My Courses 📘</h5>
+      <div class="row">
+        {% for course in assigned_courses %}
+        <div class="col-md-6 col-lg-4 mb-3">
+          <div class="quiz-card">
+            <h6>{{ course.course_code }} - {{ course.name }}</h6>
+            <p class="small text-muted mb-1">Semester: {{ course.semester.name }}</p>
+            <p class="small mb-2">Modules: <strong>{{ course.num_modules }}</strong> | Quizzes: <strong>{{ course.num_quizzes }}</strong></p>
+            <a href="{% url 'course_detail' course.id %}" class="btn btn-accent btn-sm mt-2">
+              <i class="bi bi-eye me-1"></i> View Course
+            </a>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No assigned courses found.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Live Quizzes -->
+    <div class="dashboard-section d-none" id="live-section">
+      <h5 class="section-title">Live Quizzes 🔴</h5>
+      <div class="row">
+        {% for quiz in live_quizzes %}
+        <div class="col-md-6 col-lg-4 mb-3">
+          <div class="quiz-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">{{ quiz.title }}</h6>
+              <span class="badge badge-live">LIVE</span>
+            </div>
+            <p class="small text-muted mb-1">Course: {{ quiz.course.name }}</p>
+            <p class="small mb-2">Module: {{ quiz.module.name|default:"N/A" }}</p>
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'quiz_detail' quiz.id %}" class="btn btn-accent btn-sm"><i class="bi bi-eye me-1"></i> View</a>
+              <a href="{% url 'quiz_attempts' quiz.id %}" class="btn btn-outline-success btn-sm"><i class="bi bi-graph-up me-1"></i> Attempts</a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No live quizzes right now.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Upcoming Quizzes -->
+    <div class="dashboard-section d-none" id="upcoming-section">
+      <h5 class="section-title">Upcoming Quizzes ⏳</h5>
+      <div class="row">
+        {% for quiz in upcoming_quizzes %}
+        <div class="col-md-6 col-lg-4 mb-3">
+          <div class="quiz-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">{{ quiz.title }}</h6>
+              <span class="badge badge-upcoming">UPCOMING</span>
+            </div>
+            <p class="small text-muted mb-1">Course: {{ quiz.course.name }}</p>
+            <p class="small mb-2">Module: {{ quiz.module.name|default:"N/A" }}</p>
+            <a href="{% url 'quiz_detail' quiz.id %}" class="btn btn-accent btn-sm"><i class="bi bi-eye me-1"></i> View</a>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No upcoming quizzes.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Past Quizzes -->
+    <div class="dashboard-section d-none" id="past-section">
+      <h5 class="section-title">Past Quizzes 🕒</h5>
+      <div class="row">
+        {% for quiz in past_quizzes %}
+        <div class="col-md-6 col-lg-4 mb-3">
+          <div class="quiz-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">{{ quiz.title }}</h6>
+              <span class="badge badge-ended">ENDED</span>
+            </div>
+            <p class="small text-muted mb-1">Course: {{ quiz.course.name }}</p>
+            <p class="small mb-2">Module: {{ quiz.module.name|default:"N/A" }}</p>
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'quiz_detail' quiz.id %}" class="btn btn-accent btn-sm"><i class="bi bi-eye me-1"></i> View</a>
+              <a href="{% url 'quiz_attempts' quiz.id %}" class="btn btn-outline-success btn-sm"><i class="bi bi-graph-up me-1"></i> Attempts</a>
+              <a href="{% url 'quiz_analytics' quiz.id %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-bar-chart-line me-1"></i> Analytics</a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">No past quizzes found.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const statCards = document.querySelectorAll('.stat-card');
+  const sections = document.querySelectorAll('.dashboard-section');
+
+  statCards.forEach(card => {
+    card.addEventListener('click', () => {
+      // Remove active from all cards
+      statCards.forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+
+      // Hide all sections
+      sections.forEach(sec => sec.classList.add('d-none'));
+
+      // Show selected section
+      const targetId = card.dataset.target + '-section';
+      document.getElementById(targetId).classList.remove('d-none');
+    });
+  });
+</script>
+</body>
+</html>

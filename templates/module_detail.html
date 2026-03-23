@@ -1,0 +1,484 @@
+{% extends 'base_teacher.html' %}
+{% load static %}
+
+{% block title %}Module: {{ module.name }} | SmartEval{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="row">
+
+    <!-- ================= SIDEBAR ================= -->
+    <div class="col-md-3 col-lg-2 position-sticky top-0 vh-100 bg-light p-3 border-end" style="overflow-y:auto;">
+      <h5 class="fw-bold mb-3">{{ course.name }}</h5>
+      <p class="text-muted mb-3">{{ module.name }}</p>
+      <ul class="nav flex-column nav-pills">
+        <li class="nav-item mb-1">
+          <a class="nav-link {% if active_tab == 'materials' %}active{% endif %}" href="?tab=materials">
+            <i class="bi bi-book me-1"></i> Study Materials
+          </a>
+        </li>
+        <li class="nav-item mb-1">
+          <a class="nav-link {% if active_tab == 'aiquiz' %}active{% endif %}" href="?tab=aiquiz">
+            <i class="bi bi-robot me-1"></i> AI Question Generator
+          </a>
+        </li>
+        <li class="nav-item mb-1">
+          <a class="nav-link {% if active_tab == 'questions' %}active{% endif %}" href="?tab=questions">
+            <i class="bi bi-question-circle me-1"></i> Generated Questions
+          </a>
+        </li>
+        <li class="nav-item mb-1">
+          <a class="nav-link {% if active_tab == 'quizzes' %}active{% endif %}" href="?tab=quizzes">
+            <i class="bi bi-card-checklist me-1"></i> Quizzes
+          </a>
+        </li>
+      </ul>
+      <a href="{% url 'course_detail' module.course.id %}" class="btn btn-success mt-3 w-100">
+        <i class="bi bi-arrow-left me-1"></i> Back to Course
+      </a>
+      
+
+    </div>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <div class="col-md-9 col-lg-10 py-4">
+
+      <!-- ================= MESSAGES ================= -->
+      {% if messages %}
+        <div class="mb-3">
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- ================= MATERIALS TAB ================= -->
+      {% if active_tab == 'materials' %}
+      <form method="POST" enctype="multipart/form-data" class="card p-3 mb-4" id="materialsForm">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-4">
+            <input type="text" name="topic" class="form-control" placeholder="Topic" required>
+          </div>
+          <div class="col-md-4">
+            <input type="file" name="file" class="form-control" required>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" name="upload_material" class="btn btn-primary w-100">
+              <i class="bi bi-upload me-1"></i> Upload
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {% if materials %}
+        {% for material in materials %}
+        <div class="card p-3 mb-3 d-flex justify-content-between align-items-center">
+          <div class="d-flex justify-content-between align-items-center w-100">
+            <div>
+              <strong>{{ material.topic|default:"No Topic" }}</strong><br>
+              <span>{{ material.file.name|slice:"14:" }}</span>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="{{ material.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                <i class="bi bi-download me-1"></i> Download
+              </a>
+              <form method="POST" action="{% url 'delete_material' material.id %}" onsubmit="return confirm('Are you sure?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-danger">
+                  <i class="bi bi-trash me-1"></i> Delete
+                </button>
+              </form>
+            </div>
+          </div>
+          <div class="text-muted mt-2">Uploaded at: {{ material.uploaded_at|date:"d M, Y H:i" }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted mt-3">No materials uploaded yet.</p>
+      {% endif %}
+      {% endif %}
+
+      <!-- ================= AI QUESTION GENERATOR TAB ================= -->
+      {% if active_tab == 'aiquiz' %}
+      <form method="POST" class="card p-3 mb-4" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+          <input type="text" name="topic" class="form-control" placeholder="Topic ">
+        </div>
+        <div class="mb-3">
+          <input type="number" name="num_questions" class="form-control" placeholder="Number of Questions" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Upload Study Material (PDF, PPT, DOC/DOCX)</label>
+          <input type="file" name="upload_file" class="form-control" accept=".pdf,.ppt,.pptx,.doc,.docx">
+        </div>
+        <div class="mb-3">
+          <textarea name="content" class="form-control" rows="5" placeholder="Or enter text here for AI generation"></textarea>
+        </div>
+        <button type="submit" name="generate_ai" class="btn btn-primary">
+          <i class="bi bi-robot me-1"></i> Generate Questions
+        </button>
+      </form>
+      {% endif %}
+
+      <!-- ================= GENERATED QUESTIONS TAB ================= -->
+      {% if active_tab == 'questions' %}
+        {% if topics %}
+          <form method="POST">
+            {% csrf_token %}
+            <div class="row g-3">
+              {% for topic, questions in topics.items %}
+                <div class="col-12">
+                  <h6 class="mt-3 mb-2">{{ topic }}</h6>
+                  <div class="row g-3">
+                    {% for q in questions %}
+                      <div class="col-md-6">
+                        <div class="card question-card h-100">
+                          <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" name="question_ids" value="{{ q.id }}" id="q{{ q.id }}">
+                              <label class="form-check-label fw-bold" for="q{{ q.id }}">
+                                {{ q.question_text }}
+                              </label>
+                            </div>
+                            {% if q.is_ai_generated %}
+                              <span class="badge bg-info text-dark align-self-start">AI</span>
+                            {% endif %}
+                          </div>
+                          <ul class="mb-2 ps-3">
+                            <li>A) {{ q.option_a }}</li>
+                            <li>B) {{ q.option_b }}</li>
+                            <li>C) {{ q.option_c }}</li>
+                            <li>D) {{ q.option_d }}</li>
+                          </ul>
+                          <small class="text-success">Answer: {{ q.correct_ans }}</small>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="mt-3">
+              <input type="text" name="quiz_title" class="form-control mb-2" placeholder="Quiz Title (optional)">
+              <button type="submit" name="create_draft_quiz" class="btn btn-success">
+                Create Draft Quiz from Selected
+              </button>
+            </div>
+          </form>
+        {% else %}
+          <p class="text-muted mt-3">No AI-generated questions yet.</p>
+        {% endif %}
+      {% endif %}
+
+
+
+<!-- ================= QUIZZES TAB ================= -->
+{% if active_tab == 'quizzes' %}
+
+<!-- ================= DRAFT QUIZZES ================= -->
+<h5 class="mt-3 mb-3">Draft Quizzes</h5>
+{% if draft_quizzes %}
+<div class="row g-3">
+  {% for quiz in draft_quizzes %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card p-3 h-100 shadow-sm">
+
+      <div class="d-flex justify-content-between mb-2 flex-wrap gap-2">
+        <form method="POST" action="{% url 'edit_quiz' quiz.id %}" class="d-flex gap-2 flex-grow-1">
+          {% csrf_token %}
+          <input type="text" name="title" class="form-control form-control-sm" value="{{ quiz.title }}" required>
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+        </form>
+
+        <div class="d-flex gap-1 flex-wrap justify-content-end">
+          {% if quiz.has_ai_questions %}
+            <span class="badge bg-info text-dark align-self-center">Contains AI</span>
+          {% endif %}
+          <button 
+            class="btn btn-sm btn-outline-info w-100 toggle-btn"
+            type="button" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#quiz-questions-{{ quiz.id }}"
+            aria-expanded="false"
+            aria-controls="quiz-questions-{{ quiz.id }}">
+            <i class="bi bi-list-ul me-1"></i> View {{ quiz.questions.count }} Questions
+          </button>
+          <button class="btn btn-sm btn-success w-100" data-bs-toggle="modal" data-bs-target="#publishModal{{ quiz.id }}">
+            <i class="bi bi-upload me-1"></i> Publish
+          </button>
+          <a href="{% url 'delete_quiz' quiz.id %}" class="btn btn-sm btn-danger w-100"
+             onclick="return confirm('Are you sure you want to delete this quiz?');">
+            <i class="bi bi-trash me-1"></i> Delete
+          </a>
+        </div>
+      </div>
+
+      <!-- Scrollable Questions Section -->
+      <div class="collapse mt-2" id="quiz-questions-{{ quiz.id }}">
+        <div class="quiz-questions-container p-3">
+          {% for question in quiz.questions.all %}
+          <div class="question-card mb-3 p-3 border rounded bg-light">
+            <div class="d-flex justify-content-between align-items-start">
+              <strong>Q{{ forloop.counter }}. {{ question.question_text }}</strong>
+              {% if question.is_ai_generated %}
+                <span class="badge bg-info text-dark">AI</span>
+              {% endif %}
+            </div>
+            <ul class="ps-3 mb-1 mt-2">
+              <li>A) {{ question.option_a }}</li>
+              <li>B) {{ question.option_b }}</li>
+              <li>C) {{ question.option_c }}</li>
+              <li>D) {{ question.option_d }}</li>
+            </ul>
+            <small class="text-success">Answer: {{ question.correct_ans }}</small>
+          </div>
+          {% empty %}
+          <p class="text-muted">No questions in this quiz yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No draft quizzes yet.</p>
+{% endif %}
+
+<!-- ================= PUBLISHED QUIZZES ================= -->
+<h5 class="mt-4 mb-3">Published Quizzes</h5>
+{% if published_quizzes %}
+<div class="row g-3">
+  {% for quiz in published_quizzes %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card p-3 h-100 shadow-sm">
+      <div class="d-flex justify-content-between mb-2 flex-wrap gap-2">
+        <strong>{{ quiz.title }}</strong>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="badge bg-success">{{ quiz.status }}</span>
+          <button 
+            class="btn btn-sm btn-outline-info w-100 toggle-btn"
+            type="button" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#published-quiz-questions-{{ quiz.id }}"
+            aria-expanded="false"
+            aria-controls="published-quiz-questions-{{ quiz.id }}">
+            <i class="bi bi-list-ul me-1"></i> View {{ quiz.questions.count }} Questions
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Questions Section -->
+      <div class="collapse mt-2" id="published-quiz-questions-{{ quiz.id }}">
+        <div class="quiz-questions-container p-3">
+          {% for question in quiz.questions.all %}
+          <div class="question-card mb-3 p-3 border rounded bg-light">
+            <div class="d-flex justify-content-between align-items-start">
+              <strong>Q{{ forloop.counter }}. {{ question.question_text }}</strong>
+              {% if question.is_ai_generated %}
+                <span class="badge bg-info text-dark">AI</span>
+              {% endif %}
+            </div>
+            <ul class="ps-3 mb-1 mt-2">
+              <li>A) {{ question.option_a }}</li>
+              <li>B) {{ question.option_b }}</li>
+              <li>C) {{ question.option_c }}</li>
+              <li>D) {{ question.option_d }}</li>
+            </ul>
+            <small class="text-success">Answer: {{ question.correct_ans }}</small>
+          </div>
+          {% empty %}
+          <p class="text-muted">No questions in this quiz.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button class="btn btn-sm btn-warning w-100 mt-2" data-bs-toggle="modal" data-bs-target="#republishModal{{ quiz.id }}">
+        <i class="bi bi-arrow-repeat me-1"></i> Republish / Reuse
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No published quizzes yet.</p>
+{% endif %}
+
+<!-- ================= MODALS ================= -->
+{% for quiz in draft_quizzes %}
+<div class="modal fade" id="publishModal{{ quiz.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'publish_quiz' quiz.id %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Publish Quiz: {{ quiz.title }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label>Course</label>
+            <input type="text" class="form-control" value="{{ quiz.course.name }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label>Module</label>
+            <input type="text" class="form-control" value="{{ quiz.module.name }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label>Total Questions</label>
+            <input type="text" class="form-control" value="{{ quiz.questions.count }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label>Batches</label>
+            <select name="batches" class="form-control" multiple required>
+              {% for batch in batches %}
+                <option value="{{ batch.id }}" {% if batch in quiz.batches.all %}selected{% endif %}>{{ batch.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label>Start Time</label>
+            <input type="datetime-local" name="start_time" class="form-control" value="{{ quiz.start_time|date:'Y-m-d\\TH:i' }}" required>
+          </div>
+          <div class="mb-3">
+            <label>End Time</label>
+            <input type="datetime-local" name="end_time" class="form-control" value="{{ quiz.end_time|date:'Y-m-d\\TH:i' }}" required>
+          </div>
+          <div class="mb-3">
+            <label>Duration (minutes)</label>
+            <input type="number" name="duration" class="form-control" value="{{ quiz.duration }}" required>
+          </div>
+          <div class="mb-3">
+            <label>Total Marks</label>
+            <input type="number" name="total_marks" class="form-control" value="{{ quiz.total_marks }}" step="0.01" required>
+          </div>
+          <div class="mb-3">
+            <label>Marks per Question</label>
+            <input type="number" name="marks_per_question" class="form-control" value="{{ quiz.marks_per_question }}" step="0.01">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Publish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% for quiz in published_quizzes %}
+<div class="modal fade" id="republishModal{{ quiz.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'republish_quiz' quiz.id %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Republish Quiz: {{ quiz.title }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label>Course</label>
+            <input type="text" class="form-control" value="{{ quiz.course.name }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label>Module</label>
+            <input type="text" class="form-control" value="{{ quiz.module.name }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label>Total Questions</label>
+            <input type="text" class="form-control" value="{{ quiz.questions.count }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label>Batches</label>
+            <select name="batches" class="form-control" multiple required>
+              {% for batch in batches %}
+                <option value="{{ batch.id }}" {% if batch in quiz.batches.all %}selected{% endif %}>{{ batch.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label>Start Time</label>
+            <input type="datetime-local" name="start_time" class="form-control" value="{{ quiz.start_time|date:'Y-m-d\\TH:i' }}" required>
+          </div>
+          <div class="mb-3">
+            <label>End Time</label>
+            <input type="datetime-local" name="end_time" class="form-control" value="{{ quiz.end_time|date:'Y-m-d\\TH:i' }}" required>
+          </div>
+          <div class="mb-3">
+            <label>Duration (minutes)</label>
+            <input type="number" name="duration" class="form-control" value="{{ quiz.duration }}" required>
+          </div>
+          <div class="mb-3">
+            <label>Total Marks</label>
+            <input type="number" name="total_marks" class="form-control" value="{{ quiz.total_marks }}" step="0.01" required>
+          </div>
+          <div class="mb-3">
+            <label>Marks per Question</label>
+            <input type="number" name="marks_per_question" class="form-control" value="{{ quiz.marks_per_question }}" step="0.01">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-warning">Republish Quiz</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+<!-- ================== STYLING + SCRIPT ================== -->
+<style>
+.quiz-questions-container {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.quiz-questions-container::-webkit-scrollbar {
+  width: 8px;
+}
+.quiz-questions-container::-webkit-scrollbar-thumb {
+  background-color: #bbb;
+  border-radius: 4px;
+}
+.toggle-btn.active {
+  background-color: #0dcaf0;
+  color: white;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const toggleButtons = document.querySelectorAll(".toggle-btn");
+  
+  toggleButtons.forEach(btn => {
+    btn.addEventListener("click", function() {
+      const isExpanded = btn.getAttribute("aria-expanded") === "true";
+      if (isExpanded) {
+        btn.innerHTML = `<i class="bi bi-list-ul me-1"></i> View Questions`;
+        btn.classList.remove("active");
+      } else {
+        btn.innerHTML = `<i class="bi bi-x-lg me-1"></i> Hide Questions`;
+        btn.classList.add("active");
+      }
+    });
+  });
+});
+</script>
+
+
+
+{% endblock %}
+
+

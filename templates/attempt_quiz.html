@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ quiz.title }} - Attempt Quiz</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    body {
+        background-color: #f5f7fa;
+        font-family: "Inter", sans-serif;
+    }
+    .quiz-header {
+        background: linear-gradient(90deg, #0d6efd, #20c997);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .quiz-header h3 { margin: 0; }
+    #timer {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .question-card {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: transform 0.2s;
+    }
+    .question-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    .submit-btn {
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 12px;
+    }
+    .timer-container {
+        text-align: right;
+        font-size: 1rem;
+        color: #fff;
+        font-weight: 600;
+    }
+    .progress-container {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background-color: #ffffff;
+        padding: 10px 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .progress-label {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    @media (max-width: 576px) {
+        .timer-container { text-align: center; margin-top: 10px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container py-5">
+
+    <!-- Quiz Header -->
+    <div class="quiz-header shadow-sm">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <h3>{{ quiz.title }}</h3>
+            <div class="timer-container">
+                Time Remaining: <span id="timer">--:--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-label" id="progressLabel">Question 1 of {{ questions|length }}</div>
+        <div class="progress">
+            <div id="progressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <!-- Quiz Form -->
+    <form method="POST" action="{% url 'attempt_quiz' quiz.id %}">
+        {% csrf_token %}
+        {% for question in questions %}
+        <div class="question-card" id="q{{ forloop.counter }}">
+            <p class="mb-3"><strong>Q{{ forloop.counter }}:</strong> {{ question.question_text }}</p>
+            <div class="row g-2">
+                <div class="col-md-6 col-sm-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q{{ question.id }}" value="A" {% if student_answers.question.id == "A" %}checked{% endif %} required>
+                        <label class="form-check-label">A) {{ question.option_a }}</label>
+                    </div>
+                </div>
+                <div class="col-md-6 col-sm-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q{{ question.id }}" value="B" {% if student_answers.question.id == "B" %}checked{% endif %} required>
+                        <label class="form-check-label">B) {{ question.option_b }}</label>
+                    </div>
+                </div>
+                <div class="col-md-6 col-sm-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q{{ question.id }}" value="C" {% if student_answers.question.id == "C" %}checked{% endif %} required>
+                        <label class="form-check-label">C) {{ question.option_c }}</label>
+                    </div>
+                </div>
+                <div class="col-md-6 col-sm-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q{{ question.id }}" value="D" {% if student_answers.question.id == "D" %}checked{% endif %} required>
+                        <label class="form-check-label">D) {{ question.option_d }}</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-success w-100 submit-btn">Submit Quiz</button>
+    </form>
+
+</div>
+
+<script>
+// Dynamic Timer per attempt
+const endTime = new Date("{{ end_time|date:'c' }}"); 
+const timerEl = document.getElementById("timer");
+
+function updateTimer() {
+    const now = new Date();
+    let remainingSeconds = Math.floor((endTime - now) / 1000);
+
+    if (remainingSeconds <= 0) {
+        timerEl.textContent = "0m 0s";
+        clearInterval(timerInterval);
+        alert("Time is up! Submitting quiz automatically.");
+        document.querySelector("form").submit();
+        return;
+    }
+
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    timerEl.textContent = `${minutes}m ${seconds}s`;
+
+    // Last 30 sec warning
+    if (remainingSeconds <= 30) {
+        timerEl.style.color = 'red';
+        timerEl.style.fontWeight = 'bold';
+    }
+}
+
+const timerInterval = setInterval(updateTimer, 1000);
+updateTimer();
+
+// Scroll-based Question Progress Bar
+const questionCards = document.querySelectorAll(".question-card");
+const progressBar = document.getElementById("progressBar");
+const progressLabel = document.getElementById("progressLabel");
+
+function updateProgress() {
+    let currentIndex = 0;
+    questionCards.forEach((q, i) => {
+        const rect = q.getBoundingClientRect();
+        if (rect.top <= window.innerHeight / 2) {
+            currentIndex = i + 1;
+        }
+    });
+    const total = questionCards.length;
+    const percent = (currentIndex / total) * 100;
+    progressBar.style.width = percent + "%";
+    progressLabel.textContent = `Question ${currentIndex} of ${total}`;
+}
+
+window.addEventListener("scroll", updateProgress);
+updateProgress();
+</script>
+
+</body>
+</html>

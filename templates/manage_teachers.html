@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Manage Teachers - SmartEval{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h2 class="mb-4">Manage Teachers</h2>
+
+  <form method="POST">
+    {% csrf_token %}
+
+    <!-- Pending Teachers -->
+    <h4>Pending Teachers</h4>
+    {% if pending_teachers %}
+      <ul class="list-group mb-4">
+        {% for teacher in pending_teachers %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ teacher.first_name }} {{ teacher.last_name }} ({{ teacher.email }})</span>
+            <div>
+              <input type="checkbox" name="approve" value="{{ teacher.id }}"> Approve
+              <input type="checkbox" name="delete" value="{{ teacher.id }}"> Delete
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No pending teachers.</p>
+    {% endif %}
+
+    <!-- Approved Teachers -->
+    <h4>Approved Teachers</h4>
+    {% if approved_teachers %}
+      <ul class="list-group mb-4">
+        {% for teacher in approved_teachers %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ teacher.first_name }} {{ teacher.last_name }} ({{ teacher.email }})</span>
+            <div>
+              <input type="checkbox" name="delete" value="{{ teacher.id }}"> Delete
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No approved teachers.</p>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary">Apply Changes</button>
+  </form>
+</div>
+{% endblock %}

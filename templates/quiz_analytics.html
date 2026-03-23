@@ -1,0 +1,129 @@
+{% extends 'base_teacher.html' %}
+{% load static %}
+
+{% block title %}{{ quiz.title }} | Analytics{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">{{ quiz.title }}</h2>
+      <p class="text-muted">{{ quiz.course.name }} • {{ quiz.module.name|default:"N/A" }}</p>
+    </div>
+    <span class="badge bg-success px-3 py-2">{{ quiz.status }}</span>
+  </div>
+
+  <!-- Stats Section -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-3">
+      <div class="stat-card shadow-sm">
+        <div class="icon bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-people-fill"></i>
+        </div>
+        <div>
+          <p class="stat-title">Total Attempts</p>
+          <h4 class="stat-value">{{ total_attempts }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card shadow-sm">
+        <div class="icon bg-success bg-opacity-10 text-success">
+          <i class="bi bi-graph-up"></i>
+        </div>
+        <div>
+          <p class="stat-title">Average Score</p>
+          <h4 class="stat-value">{{ avg_score }}%</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card shadow-sm">
+        <div class="icon bg-info bg-opacity-10 text-info">
+          <i class="bi bi-trophy-fill"></i>
+        </div>
+        <div>
+          <p class="stat-title">Highest Score</p>
+          <h4 class="stat-value">{{ max_score }}%</h4>
+        </div>
+      </div>
+    </div>
+    
+
+  <!-- Performance Overview -->
+  <div class="card border-0 shadow-sm p-4 mb-4">
+    <h5 class="fw-semibold mb-3">Overall Performance</h5>
+    <p class="text-muted">Average quiz performance among students</p>
+    <div class="progress rounded-3" style="height: 20px;">
+      <div class="progress-bar bg-success fw-semibold" role="progressbar" 
+           style="width: {{ avg_score }}%;" aria-valuenow="{{ avg_score }}" 
+           aria-valuemin="0" aria-valuemax="100">
+           {{ avg_score }}%
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Performers Table -->
+  {% if top_students %}
+  <div class="card border-0 shadow-sm p-4">
+    <h5 class="fw-semibold mb-3">Top Performers</h5>
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th scope="col">Rank</th>
+          <th scope="col">Student Name</th>
+          <th scope="col">Score</th>
+          <th scope="col">Attempt Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in top_students %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ s.student.get_full_name|default:s.student.username }}</td>
+          <td><span class="fw-semibold text-success">{{ s.score }}%</span></td>
+          <td>{{ s.submitted_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+    border-radius: 15px;
+    padding: 1.2rem 1rem;
+    transition: all 0.2s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+  }
+  .icon {
+    font-size: 2rem;
+    border-radius: 12px;
+    width: 55px;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stat-title {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+  .stat-value {
+    margin: 0;
+    font-weight: 600;
+    color: #111827;
+  }
+</style>
+{% endblock %}
